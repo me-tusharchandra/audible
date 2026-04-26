@@ -128,6 +128,61 @@ def plot_eval_all(eval_all_path: Path) -> Path:
     return out
 
 
+def plot_training_loss(trainer_state_path: Path = None) -> Path:
+    """Loss + LR over training steps from a real trainer_state.json run.
+
+    Uses the baseline run at runs/20260425-181321/checkpoint-1677 by default.
+    """
+    if trainer_state_path is None:
+        trainer_state_path = (
+            REPO / "training" / "runs" / "20260425-183254"
+            / "checkpoint-1677" / "trainer_state.json"
+        )
+    state = json.loads(Path(trainer_state_path).read_text())
+    log = state["log_history"]
+
+    train_entries = [e for e in log if "loss" in e]
+    eval_entries = [e for e in log if "eval_loss" in e]
+
+    steps = [e["step"] for e in train_entries]
+    losses = [e["loss"] for e in train_entries]
+    lrs = [e["learning_rate"] for e in train_entries]
+
+    eval_steps = [e["step"] for e in eval_entries]
+    eval_losses = [e["eval_loss"] for e in eval_entries]
+
+    PLOTS_DIR.mkdir(parents=True, exist_ok=True)
+    fig, ax_loss = plt.subplots(figsize=(10, 5))
+
+    ax_loss.plot(steps, losses, marker="o", markersize=3, color="tab:blue",
+                 label="training loss (log)")
+    ax_loss.scatter(eval_steps, eval_losses, marker="*", s=180, color="red",
+                    zorder=5, label="eval loss (epoch end)")
+    ax_loss.set_yscale("log")
+    ax_loss.set_xlabel("training step")
+    ax_loss.set_ylabel("loss (log scale)", color="tab:blue")
+    ax_loss.tick_params(axis="y", labelcolor="tab:blue")
+    ax_loss.grid(alpha=0.3, which="both")
+
+    ax_lr = ax_loss.twinx()
+    ax_lr.plot(steps, lrs, color="tab:orange", linewidth=1.6,
+               linestyle="--", label="learning rate")
+    ax_lr.set_ylabel("learning rate (linear)", color="tab:orange")
+    ax_lr.tick_params(axis="y", labelcolor="tab:orange")
+
+    lines_loss, labels_loss = ax_loss.get_legend_handles_labels()
+    lines_lr, labels_lr = ax_lr.get_legend_handles_labels()
+    ax_loss.legend(lines_loss + lines_lr, labels_loss + labels_lr,
+                   loc="upper right")
+
+    ax_loss.set_title("Training loss & learning rate (mobileBERT, 3 epochs, 1677 steps)")
+    plt.tight_layout()
+    out = PLOTS_DIR / "training_loss.png"
+    plt.savefig(out, dpi=140)
+    plt.close()
+    return out
+
+
 def plot_confusion(metrics_json: Path, class_names: List[str]) -> Path:
     metrics = json.loads(metrics_json.read_text())
     cm = np.array(metrics["confusion_matrix"])
@@ -156,6 +211,8 @@ def plot_confusion(metrics_json: Path, class_names: List[str]) -> Path:
 
 def main() -> None:
     out = plot_dataset_distribution()
+    print(f"wrote {out}")
+    out = plot_training_loss()
     print(f"wrote {out}")
 
 

@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: #09090b; /* zinc-950 */
+  --color-foreground: #fafafa; /* zinc-50 */
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html,
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: #27272a; /* zinc-800 */
+  color: #fafafa; /* zinc-50 */
+}
+
+@keyframes pulseDot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(1.4);
+  }
+}
+
+.pulse-dot {
+  animation: pulseDot 1.2s ease-in-out infinite;
+}
+
+@keyframes cursorBit {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) translate(0, 0);
+  }
+  20% {
+    opacity: var(--bit-opacity, 0.5);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%)
+      translate(var(--bit-drift-x, 0px), var(--bit-drift-y, 30px));
+  }
+}
+
+.cursor-bit {
+  color: #22c55e; /* green-500 — matrix-ish but not neon */
+  text-shadow: 0 0 6px rgba(34, 197, 94, 0.45);
+  opacity: 0;
+  will-change: transform, opacity;
+  animation-name: cursorBit;
+  animation-timing-function: ease-out;
+  animation-fill-mode: forwards;
+}

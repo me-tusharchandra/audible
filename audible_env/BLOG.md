@@ -1,24 +1,49 @@
-# Teaching small models to listen well
+# Audible — when your voice assistant should actually listen
 
-> *Audible — a self-improving OpenEnv environment that takes a 25M-parameter
-> mobileBERT classifier and teaches it to gate an always-on voice assistant.
-> Built for the **Meta OpenEnv Hackathon 2026, Theme #4 — Self-Improvement**.*
+> *Imagine if your phone could quietly hear what's happening around you and
+> just knew when to help — without ever needing a wake word.*
 
-**TL;DR.** "Hey Siri" and "Hey Alexa" are the only thing standing between
-voice assistants and a UX disaster. We wanted to know if a tiny edge-deployable
-model could do better — figure out *on its own* when to act on what it hears,
-without a wake word, while honoring per-user preferences. We built an OpenEnv
-environment for the problem, trained mobileBERT as the gate, and then ran an
-adaptive adversarial curriculum where a generator agent escalates difficulty
-each round in response to the gate's current weak spots. **One round of
-curriculum collapsed the hardest user profile's false-wake rate from 38.8%
-to 9.8% — a 4× reduction.** This post is the story of how we got there and
-the honest research finding we hit along the way.
+You know how every voice assistant today needs you to say "Hey Siri" or
+"Alexa" first? That's because the alternative — letting it always listen and
+figure out what to do — is hard. Really hard. If your phone tries to act on
+everything it hears, it'll set timers when you say *"hold on, give me a sec,"*
+play music when someone mentions a song on TV, and search Google every time
+you wonder something out loud.
 
-- 🤗 **Live Space:** <https://huggingface.co/spaces/me-tusharchandra/audible-env>
-- 🎛 **Try it in the browser:** <https://me-tusharchandra-audible-env.hf.space/web>
+**Audible is what you'd build if you wanted to drop the wake word.** It's a
+small AI model trained to be the *gatekeeper* of an always-on assistant — one
+that knows when you're actually talking to it, when you're talking to someone
+else, and when you're just thinking out loud. And because not everyone wants
+the same thing from their assistant, it learns three personalities you can
+pick from:
+
+- **Minimalist** — only acts on direct commands. Stays silent for everything
+  else, even if it sounds like an instruction.
+- **Proactive** — picks up on indirect cues like *"I wonder what the weather's
+  like"* and quietly looks it up so the answer is ready when you ask.
+- **Work-focused** — sets timers and calendar events all day, but never plays
+  music or touches the smart-home lights, even if you ask.
+
+In your day, you'd notice it as: fewer awkward *"Sorry, I didn't catch that"*
+moments, fewer accidental timers from a passing TV ad, and your assistant
+only stepping in when it actually adds value — tuned to *your* preference,
+not the average user's.
+
+---
+
+**Under the hood**, Audible is a self-improving OpenEnv environment that
+takes a 25M-parameter mobileBERT classifier and teaches it to be the gate.
+We built the env, trained the gate, then ran an adaptive adversarial
+curriculum where a generator agent escalates difficulty each round in
+response to the gate's current weak spots. **One round collapsed the hardest
+user profile's false-wake rate from 38.8% to 9.8% — a 4× reduction.** Built
+for the **Meta OpenEnv Hackathon 2026, Theme #4 — Self-Improvement**.
+
+- 🎬 **Live product demo:** <https://website-wheat-eight-sd3hr2u4kn.vercel.app>
+- 🤗 **HF Space (the env):** <https://huggingface.co/spaces/me-tusharchandra/audible-env>
+- 🎛 **Try the env in the browser:** <https://me-tusharchandra-audible-env.hf.space/web>
 - 📓 **Colab notebook:** see the repo's `training/notebook.ipynb`
-- 🎥 **2-min demo:** _link will be in the Space's README once recorded_
+- 🎥 **2-min demo video:** _link will be in the Space's README once recorded_
 
 ---
 
@@ -193,7 +218,15 @@ synthetic addition dramatically fixes the tool-class imbalance:
 
 We fine-tuned mobileBERT for 3 epochs on the combined dataset using a
 custom `WeightedTrainer` (HF `Trainer` subclass with class-weighted CE
-loss to compensate for the long tail). After 3 epochs:
+loss to compensate for the long tail).
+
+![training loss & learning rate](plots/training_loss.png)
+
+*Training loss (log scale, left axis) and warmup-then-decay learning rate
+(right axis) over 1677 steps of the real baseline run. Loss converges
+cleanly from the init-step spike to ~0.08 by epoch 3.*
+
+After 3 epochs:
 
 - **Held-out dataset eval:** 96.91% accuracy, F1-macro 0.875
 - **Env-rollout eval (300 rollouts × 3 profiles):** +1.42 mean reward, 9.4% false-wake rate

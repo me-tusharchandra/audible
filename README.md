@@ -12,6 +12,8 @@
 | **Environment (HF Space)** | https://huggingface.co/spaces/me-tusharchandra/audible-env |
 | **Live Web UI** | https://me-tusharchandra-audible-env.hf.space/web |
 | **Health check** | `curl https://me-tusharchandra-audible-env.hf.space/health` → `{"status":"healthy"}` |
+| **Code repository** | https://github.com/me-tusharchandra/audible |
+| **Blog post / writeup** | [`audible_env/BLOG.md`](audible_env/BLOG.md) — the full story + the 4× false-wake reduction headline |
 | **Colab notebook** | [`training/notebook.ipynb`](training/notebook.ipynb) — 20 cells, ~10–15 min runtime |
 | **Demo video** | `_paste your YouTube link here once recorded_` |
 | **Friend's prior work** | https://github.com/pranjal-pravesh/actionable-gating-classifier |
@@ -470,6 +472,8 @@ classifier, so `Trainer` (the class TRL extends) is the right tool. Our
 class-weighted CE.
 
 **Phase 2 results (held-out dataset eval):**
+
+![training loss & learning rate](training/plots/training_loss.png)
 
 | Epoch | eval_loss | eval_accuracy | F1-macro | F1-weighted |
 |---:|---:|---:|---:|---:|

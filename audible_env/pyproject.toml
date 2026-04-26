@@ -18,14 +18,10 @@ dependencies = [
     # install from github
     # "openenv-core[core] @ git+https://github.com/meta-pytorch/OpenEnv.git",
     "openenv-core[core]>=0.2.2",
-    # Environment-specific dependencies
-    # Add all dependencies needed for your environment here
-    # Examples:
-    # "numpy>=1.19.0",
-    # "torch>=2.0.0",
-    # "gymnasium>=0.29.0",
-    # "openspiel>=1.0.0",
-    # "smolagents>=1.22.0,<2",
+    # Live-inference deps for the /classify endpoint (mobileBERT classifier).
+    # CPU torch is sufficient — the free HF Space tier has no GPU.
+    "torch>=2.2.0",
+    "transformers>=5.0.0",
 ]
 
 [project.optional-dependencies]
@@ -43,3 +39,13 @@ server = "audible_env.server.app:main"
 include-package-data = true
 packages = ["audible_env", "audible_env.server"]
 package-dir = { "audible_env" = ".", "audible_env.server" = "server" }
+
+# CPU-only torch — the HF Spaces free tier is CPU-only, and CUDA wheels would
+# bloat the image past tier limits.
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
