@@ -26,6 +26,13 @@ Given a single ambient utterance plus the active user's preference profile, deci
 
 Built for the **Meta OpenEnv Hackathon 2026, Theme #4 — Self-Improvement**.
 
+| | |
+|---|---|
+| 📝 **Writeup / blog post** | [`BLOG.md`](BLOG.md) — the full story of how we built it + the 4× false-wake reduction headline |
+| 🎥 **2-min demo video** | _link will be added once recorded_ |
+| 💻 **Code repository** | https://github.com/me-tusharchandra/audible |
+| 📓 **Colab notebook** | [`training/notebook.ipynb`](https://github.com/me-tusharchandra/audible/blob/main/training/notebook.ipynb) (in the GitHub repo) |
+
 ## Why this is interesting
 
 Wake-word ("Hey Siri") gating is a solved problem. **Always-on listening isn't.** The hard cases are ambient utterances where a tool keyword appears but the speaker isn't actually addressing the assistant:

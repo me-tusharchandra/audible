@@ -60,6 +60,9 @@
   - [Build timeline — what got built when](#build-timeline--what-got-built-when)
   - [Honest scope notes \& trade-offs](#honest-scope-notes--trade-offs)
   - [Demo video — talking points](#demo-video--talking-points)
+    - [Full voiceover script (~290 words, ≈ 1:55 at normal pace)](#full-voiceover-script-290-words--155-at-normal-pace)
+    - [Visual cues (what to show on screen)](#visual-cues-what-to-show-on-screen)
+    - [Tips for delivery](#tips-for-delivery)
   - [Future work](#future-work)
   - [Acknowledgments](#acknowledgments)
 
@@ -843,13 +846,64 @@ to read this section and predict every weakness in the work below.
 **Target:** ≤2 minutes. Format: screen recording with voiceover. Upload to
 YouTube; paste the link into the table at the top of this README.
 
-| Time | Slide / screen | Talking point |
-|---|---|---|
-| 0:00–0:20 | Show 3-4 ambient utterances in a slide ("Hold on a sec", "Did you set the timer for the cookies?", "I wonder what the weather's like") | *"Wake-word gating is solved. Always-on listening isn't. The hard cases are these: tool keywords appear, but the speaker isn't asking the assistant to do anything. A naive classifier wakes on all of them."* |
-| 0:20–0:50 | Show https://me-tusharchandra-audible-env.hf.space/web — click Reset, get a real utterance, submit an action, show the per-component breakdown | *"Our OpenEnv environment frames this as a 7-way classification with three user-preference profiles. The composite rubric weights false-wakes heavily — that's the worst UX failure of an always-on listener. Here's a real round-trip against the deployed Space."* |
-| 0:50–1:30 | Show `training/plots/reward_curve.png` (the 2-panel one) | *"This is the Theme #4 result. We ran 3 rounds of an adaptive adversarial curriculum — generator agent shows the gate's failures, generates harder versions, gate retrains. Round 1 collapsed the proactive profile's false-wake rate from 38.8% to 9.8%. That's a 4x reduction in the worst failure mode, in one curriculum round."* |
-| 1:30–1:50 | Brief: friend's mobileBERT binary baseline + your additions on top | *"Built on a friend's mobileBERT binary baseline — we kept the edge angle (25M params, runs on CPU and on-device via CoreML). What we added: per-user personalization, the OpenEnv environment, the composite rubric, and the self-improvement curriculum."* |
-| 1:50–2:00 | URL slide: HF Space + GitHub + notebook | *"Everything's reproducible. Space is live, Colab notebook is one click, all the code is on GitHub."* |
+### Full voiceover script (~290 words, ≈ 1:55 at normal pace)
+
+> "**Hey Siri.**" "**Hey Alexa.**" These two phrases are doing all the work.
+> Without a wake word, your voice assistant is basically deaf — it can't
+> listen to what's around you, it can't pick up on what you actually need,
+> and it definitely can't act on it. Wake words exist because we don't trust
+> these things to figure out *when* to act, so we make them ask permission
+> first.
+>
+> always-on, proactive listening devices that actually pay attention and
+> figure out for themselves when to act is a much harder problem. Think
+> about all the things you say in a day. *"Hold on a sec, grabbing my keys."*
+> *"Did you set the timer for the cookies?"* *"I wonder what the weather's
+> like."* Tool keywords are everywhere — but most of the time you're not
+> actually asking for help. A keyword-matching gate wakes on every single
+> one of these. A binary "actionable / not actionable" classifier misses
+> the fact that *different people want different things* from their assistant.
+>
+> So we built **Audible**. It's a self-improving OpenEnv environment that
+> trains a tiny, edge-deployable **mobileBERT** classifier — runs on a
+> phone — to be the *gate* of an always-on assistant. It decides when to
+> act, which tool to call, and how to honor each user's preferred level
+> of intervention.
+>
+> **mobileBERT a 24.6-million-parameter** with a
+> 7-way classification head covering IGNORE, UPDATE_CONTEXT, and the five
+> tools with a baseline accuracy of **96.9%**
+>
+> Audible serves a real ambient utterance, the gate classifies decision correctness,
+> tool match, profile alignment, and a heavy penalty for false wakes.
+>
+> And here's the **Self-Improvement** angle. We ran an *adaptive
+> adversarial curriculum* — each round, a generator agent inspects the
+> gate's worst failures and produces harder variations of exactly those
+> cases. After **one round**, the **proactive profile's false-wake rate
+> dropped from 38.8% to 9.8%** — a 4× reduction in the worst UX failure
+> of an always-on listener.
+>
+> Everything's reproducible on HF Space.
+> **Audible.** Teaching small models to listen well.
+
+### Visual cues (what to show on screen)
+
+| Time | What's on screen |
+|---|---|
+| 0:00–0:15 | Title card: "Audible — teaching small models to listen well." Hold on screen. |
+| 0:15–0:35 | Bullet slide of the 3 example utterances ("Hold on a sec…", "Did you set the timer…", "I wonder what the weather's like") — appear one by one as you say them |
+| 0:35–0:55 | Logo / hero shot of the project. Maybe the system diagram from the README. |
+| 0:55–1:25 | **Live Space round-trip.** Open https://me-tusharchandra-audible-env.hf.space/web → click Reset → submit an action → highlight the per-component reward breakdown |
+| 1:25–1:50 | **The reward curve.** Open `training/plots/reward_curve.png`. Point at the orange (proactive) line on the right panel — emphasise the 38.8% → 9.8% drop visually |
+| 1:50–2:00 | Outro card with the three URLs (HF Space, GitHub repo, Colab notebook) |
+
+### Tips for delivery
+
+- Pause briefly after each "Hey Siri / Hey Alexa" — let the hook land.
+- The 38.8% → 9.8% number is the headline. Slow down on it.
+- Don't read the URLs aloud — show them on the outro card.
+- If you're tight on time, the easiest cut is the second bullet of "all the things you say in a day" — keep one or two examples and move on.
 
 ---
 
