@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.env
+.python-version
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Notebooks
+.ipynb_checkpoints/
+*-checkpoint.ipynb
+
+# ML artifacts
+*.bin
+*.safetensors
+*.pt
+*.pth
+*.onnx
+*.tflite
+*.mlpackage/
+checkpoints/
+runs/
+wandb/
+outputs/
+mlruns/
+
+# Datasets (keep small ones, ignore generated bulk)
+data/generated/
+data/cache/
+
+# IDE / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Hugging Face
+.cache/
+hf_cache/
+
+# Local secrets
+.env.local
+*.key
+secrets/
