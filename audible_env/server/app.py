@@ -36,18 +36,18 @@ except Exception as e:  # pragma: no cover
     ) from e
 
 try:
-    from ..models import AudibleAction, AudibleObservation
+    from ..models import GateAction, GateObservation
     from .audible_env_environment import AudibleEnvironment
 except ImportError:
-    from models import AudibleAction, AudibleObservation
+    from models import GateAction, GateObservation
     from server.audible_env_environment import AudibleEnvironment
 
 
 # Create the app with web interface and README integration
 app = create_app(
     AudibleEnvironment,
-    AudibleAction,
-    AudibleObservation,
+    GateAction,
+    GateObservation,
     env_name="audible_env",
     max_concurrent_envs=1,  # increase this number to allow more concurrent WebSocket sessions
 )

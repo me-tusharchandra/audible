@@ -1,5 +1,5 @@
 ---
-title: Audible Env Environment Server
+title: Audible — Ambient-Listening Gating Environment
 emoji: 🎛️
 colorFrom: green
 colorTo: green
@@ -9,247 +9,104 @@ app_port: 8000
 base_path: /web
 tags:
   - openenv
+  - gating-classifier
+  - mobilebert
+  - self-improvement
+  - hackathon
 ---
 
-# Audible Env Environment
+# Audible — Ambient-Listening Gating Environment
 
-A simple test environment that echoes back messages. Perfect for testing the env APIs as well as demonstrating environment usage patterns.
+OpenEnv environment for training an always-on voice-assistant **gating classifier**.
+Given a single ambient utterance plus the active user's preference profile, decide:
 
-## Quick Start
+- `ACT(<tool>)` — fire one of 5 tools (`set_timer`, `add_calendar_event`, `play_music`, `web_search`, `smart_home_control`)
+- `UPDATE_CONTEXT` — silently note this for later
+- `IGNORE` — do nothing
 
-The simplest way to use the Audible Env environment is through the `AudibleEnv` class:
+Built for the **Meta OpenEnv Hackathon 2026, Theme #4 — Self-Improvement**.
 
-```python
-from audible_env import AudibleAction, AudibleEnv
+## Why this is interesting
 
-try:
-    # Create environment from Docker image
-    audible_envenv = AudibleEnv.from_docker_image("audible_env-env:latest")
+Wake-word ("Hey Siri") gating is a solved problem. **Always-on listening isn't.** The hard cases are ambient utterances where a tool keyword appears but the speaker isn't actually addressing the assistant:
 
-    # Reset
-    result = audible_envenv.reset()
-    print(f"Reset: {result.observation.echoed_message}")
+- *"Hold on a sec, grabbing my keys"* — `set_timer`-shaped, but it's not a command
+- *"Did you set the timer for the cookies?"* — addressing another person
+- *"I wonder what the weather's like in Paris"* — proactive should ACT, others shouldn't
+- *"It's a bit bright in here"* — proactive should turn down lights, work-focused should ignore
 
-    # Send multiple messages
-    messages = ["Hello, World!", "Testing echo", "Final message"]
+A naive keyword classifier wakes spuriously on all of these. A binary "actionable / non-actionable" classifier (the standard baseline) misses the **per-user personalization** layer entirely. This environment trains a small, edge-deployable model (mobileBERT, ~25M params) to handle both, with three preference profiles personalizing the gate's behavior.
 
-    for msg in messages:
-        result = audible_envenv.step(AudibleAction(message=msg))
-        print(f"Sent: '{msg}'")
-        print(f"  → Echoed: '{result.observation.echoed_message}'")
-        print(f"  → Length: {result.observation.message_length}")
-        print(f"  → Reward: {result.reward}")
-
-finally:
-    # Always clean up
-    audible_envenv.close()
-```
-
-That's it! The `AudibleEnv.from_docker_image()` method handles:
-- Starting the Docker container
-- Waiting for the server to be ready
-- Connecting to the environment
-- Container cleanup when you call `close()`
-
-## Building the Docker Image
-
-Before using the environment, you need to build the Docker image:
-
-```bash
-# From project root
-docker build -t audible_env-env:latest -f server/Dockerfile .
-```
-
-## Deploying to Hugging Face Spaces
-
-You can easily deploy your OpenEnv environment to Hugging Face Spaces using the `openenv push` command:
-
-```bash
-# From the environment directory (where openenv.yaml is located)
-openenv push
-
-# Or specify options
-openenv push --namespace my-org --private
-```
-
-The `openenv push` command will:
-1. Validate that the directory is an OpenEnv environment (checks for `openenv.yaml`)
-2. Prepare a custom build for Hugging Face Docker space (enables web interface)
-3. Upload to Hugging Face (ensuring you're logged in)
-
-### Prerequisites
-
-- Authenticate with Hugging Face: The command will prompt for login if not already authenticated
-
-### Options
-
-- `--directory`, `-d`: Directory containing the OpenEnv environment (defaults to current directory)
-- `--repo-id`, `-r`: Repository ID in format 'username/repo-name' (defaults to 'username/env-name' from openenv.yaml)
-- `--base-image`, `-b`: Base Docker image to use (overrides Dockerfile FROM)
-- `--private`: Deploy the space as private (default: public)
-
-### Examples
-
-```bash
-# Push to your personal namespace (defaults to username/env-name from openenv.yaml)
-openenv push
-
-# Push to a specific repository
-openenv push --repo-id my-org/my-env
-
-# Push with a custom base image
-openenv push --base-image ghcr.io/meta-pytorch/openenv-base:latest
-
-# Push as a private space
-openenv push --private
-
-# Combine options
-openenv push --repo-id my-org/my-env --base-image custom-base:latest --private
-```
-
-After deployment, your space will be available at:
-`https://huggingface.co/spaces/<repo-id>`
-
-The deployed space includes:
-- **Web Interface** at `/web` - Interactive UI for exploring the environment
-- **API Documentation** at `/docs` - Full OpenAPI/Swagger interface
-- **Health Check** at `/health` - Container health monitoring
-- **WebSocket** at `/ws` - Persistent session endpoint for low-latency interactions
-
-## Environment Details
-
-### Action
-**AudibleAction**: Contains a single field
-- `message` (str) - The message to echo back
-
-### Observation
-**AudibleObservation**: Contains the echo response and metadata
-- `echoed_message` (str) - The message echoed back
-- `message_length` (int) - Length of the message
-- `reward` (float) - Reward based on message length (length × 0.1)
-- `done` (bool) - Always False for echo environment
-- `metadata` (dict) - Additional info like step count
-
-### Reward
-The reward is calculated as: `message_length × 0.1`
-- "Hi" → reward: 0.2
-- "Hello, World!" → reward: 1.3
-- Empty message → reward: 0.0
-
-## Advanced Usage
-
-### Connecting to an Existing Server
-
-If you already have a Audible Env environment server running, you can connect directly:
+## Action / observation contract
 
 ```python
-from audible_env import AudibleEnv
+GateObservation       # what the agent sees
+    utterance: str
+    context_history: list[str]
+    user_profile: "minimalist" | "proactive" | "work_focused"
+    available_tools: list[{name, description}]   # 5 tools
 
-# Connect to existing server
-audible_envenv = AudibleEnv(base_url="<ENV_HTTP_URL_HERE>")
-
-# Use as normal
-result = audible_envenv.reset()
-result = audible_envenv.step(AudibleAction(message="Hello!"))
+GateAction            # what the agent emits
+    decision: "ACT" | "UPDATE_CONTEXT" | "IGNORE"
+    tool: optional ToolName, only when decision == "ACT"
 ```
 
-Note: When connecting to an existing server, `audible_envenv.close()` will NOT stop the server.
+### Profiles
 
-### Using the Context Manager
+| Profile | Behavior |
+|---|---|
+| `minimalist` | Acts only on direct first-person imperative commands clearly addressed to the assistant. Anything ambient → IGNORE. |
+| `proactive` | Acts on direct commands AND indirect cues ("I wonder…", "it's freezing") — but not omniscient; vague cues still IGNORE. |
+| `work_focused` | Acts on `set_timer` / `add_calendar_event` / `web_search`. Never plays music or controls smart home, even when explicitly asked. |
 
-The client supports context manager usage for automatic connection management:
+## Reward (composite rubric)
+
+Four components, combined non-uniformly so **false wakes are the most painful error** (because spurious activation is the worst UX failure of always-on listening):
+
+| Component | Weight | Range | Fires when |
+|---|---|---|---|
+| `gate_correctness` | +1.0 | {0, 1} | decision matches ground truth |
+| `tool_correctness` | +0.5 | {0, 1} | both decisions ACT and tool matches |
+| `profile_alignment` | +0.5 | {0, 1} | action honors profile preference |
+| `false_wake_penalty` | +1.0 | {-1, 0} | predicted ACT but ground truth = IGNORE/UPDATE |
+
+Reward range: `[-1.0, +2.0]`. Per-component scores propagate in `observation.component_scores` so training can plot accuracy on each axis separately.
+
+## Episode structure
+
+Single step. `reset()` samples one (scenario, profile) pair from the held-out seed scenario set; `step(action)` scores the agent's classification with the composite rubric and returns `done=True` with the reward attached.
+
+## Quick start
 
 ```python
-from audible_env import AudibleAction, AudibleEnv
+from audible_env import AudibleEnv, GateAction
 
-# Connect with context manager (auto-connects and closes)
-with AudibleEnv(base_url="http://localhost:8000") as env:
-    result = env.reset()
-    print(f"Reset: {result.observation.echoed_message}")
-    # Multiple steps with low latency
-    for msg in ["Hello", "World", "!"]:
-        result = env.step(AudibleAction(message=msg))
-        print(f"Echoed: {result.observation.echoed_message}")
+with AudibleEnv(base_url="https://me-tusharchandra-audible-env.hf.space").sync() as env:
+    obs = env.reset().observation
+    print(obs.utterance, obs.user_profile)        # one ambient utterance
+    action = GateAction(decision="ACT", tool="set_timer")
+    result = env.step(action)
+    print(result.reward, result.observation.ground_truth)
 ```
 
-The client uses WebSocket connections for:
-- **Lower latency**: No HTTP connection overhead per request
-- **Persistent session**: Server maintains your environment state
-- **Efficient for episodes**: Better for many sequential steps
-
-### Concurrent WebSocket Sessions
-
-The server supports multiple concurrent WebSocket connections. To enable this,
-modify `server/app.py` to use factory mode:
-
-```python
-# In server/app.py - use factory mode for concurrent sessions
-app = create_app(
-    AudibleEnvironment,  # Pass class, not instance
-    AudibleAction,
-    AudibleObservation,
-    max_concurrent_envs=4,  # Allow 4 concurrent sessions
-)
-```
-
-Then multiple clients can connect simultaneously:
-
-```python
-from audible_env import AudibleAction, AudibleEnv
-from concurrent.futures import ThreadPoolExecutor
-
-def run_episode(client_id: int):
-    with AudibleEnv(base_url="http://localhost:8000") as env:
-        result = env.reset()
-        for i in range(10):
-            result = env.step(AudibleAction(message=f"Client {client_id}, step {i}"))
-        return client_id, result.observation.message_length
-
-# Run 4 episodes concurrently
-with ThreadPoolExecutor(max_workers=4) as executor:
-    results = list(executor.map(run_episode, range(4)))
-```
-
-## Development & Testing
-
-### Direct Environment Testing
-
-Test the environment logic directly without starting the HTTP server:
+Or pull the Docker image and run locally:
 
 ```bash
-# From the server directory
-python3 server/audible_env_environment.py
+docker pull registry.hf.space/me-tusharchandra-audible-env:latest
+docker run -p 8000:8000 registry.hf.space/me-tusharchandra-audible-env:latest
 ```
 
-This verifies that:
-- Environment resets correctly
-- Step executes actions properly
-- State tracking works
-- Rewards are calculated correctly
+## Repo layout
 
-### Running Locally
+| File | Purpose |
+|---|---|
+| `models.py` | Typed `GateAction` / `GateObservation` + `TOOL_PALETTE` + `PROFILE_DESCRIPTIONS` |
+| `client.py` | Typed WS/HTTP client subclassing `EnvClient` |
+| `server/audible_env_environment.py` | `Environment` subclass — single-step episodes |
+| `server/rubric.py` | Four-component composite `Rubric` |
+| `server/scenarios.py` | Seed scenarios with per-profile labels |
+| `server/app.py` | FastAPI app via `openenv.core.create_app` |
 
-Run the server locally for development:
+## Submission
 
-```bash
-uvicorn server.app:app --reload
-```
-
-## Project Structure
-
-```
-audible_env/
-├── .dockerignore         # Docker build exclusions
-├── __init__.py            # Module exports
-├── README.md              # This file
-├── openenv.yaml           # OpenEnv manifest
-├── pyproject.toml         # Project metadata and dependencies
-├── uv.lock                # Locked dependencies (generated)
-├── client.py              # AudibleEnv client
-├── models.py              # Action and Observation models
-└── server/
-    ├── __init__.py        # Server module exports
-    ├── audible_env_environment.py  # Core environment logic
-    ├── app.py             # FastAPI application (HTTP + WebSocket endpoints)
-    └── Dockerfile         # Container image definition
-```
+Training pipeline, curriculum loop (Theme #4 self-improvement), results, plots, and demo all live in the parent repository. See the top-level `README.md` for the full submission with metrics and demo links.

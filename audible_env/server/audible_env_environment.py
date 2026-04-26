@@ -1,104 +1,108 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-# All rights reserved.
-#
-# This source code is licensed under the BSD-style license found in the
-# LICENSE file in the root directory of this source tree.
-
 """
-Audible Env Environment Implementation.
+Ambient-listening gating environment.
 
-A simple test environment that echoes back messages sent to it.
-Perfect for testing HTTP server infrastructure.
+Episode = single step. reset() samples a (scenario, profile) pair and returns
+the utterance + context + tool palette. step() takes the agent's GateAction,
+scores it via the composite GateRubric, and returns done=True with the reward
+attached and ground truth + per-component scores in metadata for eval.
 """
 
+import random
+from typing import Any, Optional
 from uuid import uuid4
 
 from openenv.core.env_server.interfaces import Environment
 from openenv.core.env_server.types import State
 
 try:
-    from ..models import AudibleAction, AudibleObservation
-except ImportError:
-    from models import AudibleAction, AudibleObservation
+    from ..models import (
+        PROFILE_NAMES,
+        TOOL_PALETTE,
+        GateAction,
+        GateObservation,
+    )
+    from .rubric import GateRubric
+    from .scenarios import SCENARIOS
+except ImportError:  # local script execution
+    from models import PROFILE_NAMES, TOOL_PALETTE, GateAction, GateObservation
+    from server.rubric import GateRubric
+    from server.scenarios import SCENARIOS
 
 
 class AudibleEnvironment(Environment):
-    """
-    A simple echo environment that echoes back messages.
+    """Single-step gating environment.
 
-    This environment is designed for testing the HTTP server infrastructure.
-    It maintains minimal state and simply echoes back whatever message it receives.
-
-    Example:
-        >>> env = AudibleEnvironment()
-        >>> obs = env.reset()
-        >>> print(obs.echoed_message)  # "Audible Env environment ready!"
-        >>>
-        >>> obs = env.step(AudibleAction(message="Hello"))
-        >>> print(obs.echoed_message)  # "Hello"
-        >>> print(obs.message_length)  # 5
+    On reset, samples a scenario + profile and exposes the utterance to the
+    agent. On step, scores the agent's classification against the per-profile
+    ground truth via the composite rubric and ends the episode.
     """
 
-    # Enable concurrent WebSocket sessions.
-    # Set to True if your environment isolates state between instances.
-    # When True, multiple WebSocket clients can connect simultaneously, each
-    # getting their own environment instance (when using factory mode in app.py).
     SUPPORTS_CONCURRENT_SESSIONS: bool = True
 
-    def __init__(self):
-        """Initialize the audible_env environment."""
-        self._state = State(episode_id=str(uuid4()), step_count=0)
-        self._reset_count = 0
+    def __init__(self) -> None:
+        super().__init__(rubric=GateRubric())
+        self._state: State = State(episode_id=str(uuid4()), step_count=0)
+        self._rng = random.Random()
+        self._current: Optional[tuple[dict, str]] = None  # (scenario, profile)
 
-    def reset(self) -> AudibleObservation:
-        """
-        Reset the environment.
+    def reset(
+        self,
+        seed: Optional[int] = None,
+        episode_id: Optional[str] = None,
+        **kwargs: Any,
+    ) -> GateObservation:
+        if seed is not None:
+            self._rng.seed(seed)
 
-        Returns:
-            AudibleObservation with a ready message
-        """
-        self._state = State(episode_id=str(uuid4()), step_count=0)
-        self._reset_count += 1
+        self._state = State(episode_id=episode_id or str(uuid4()), step_count=0)
 
-        return AudibleObservation(
-            echoed_message="Audible Env environment ready!",
-            message_length=0,
+        scenario = self._rng.choice(SCENARIOS)
+        profile = self._rng.choice(PROFILE_NAMES)
+        self._current = (scenario, profile)
+
+        return GateObservation(
+            utterance=scenario["utterance"],
+            context_history=list(scenario.get("context_history", [])),
+            user_profile=profile,
+            available_tools=list(TOOL_PALETTE),
             done=False,
-            reward=0.0,
+            reward=None,
+            scenario_id=scenario["id"],
         )
 
-    def step(self, action: AudibleAction) -> AudibleObservation:  # type: ignore[override]
-        """
-        Execute a step in the environment by echoing the message.
+    def step(
+        self,
+        action: GateAction,
+        timeout_s: Optional[float] = None,
+        **kwargs: Any,
+    ) -> GateObservation:
+        if self._current is None:
+            raise RuntimeError("step() called before reset()")
 
-        Args:
-            action: AudibleAction containing the message to echo
-
-        Returns:
-            AudibleObservation with the echoed message and its length
-        """
         self._state.step_count += 1
+        scenario, profile = self._current
+        gt = scenario["labels"][profile]
 
-        message = action.message
-        length = len(message)
-
-        # Simple reward: longer messages get higher rewards
-        reward = length * 0.1
-
-        return AudibleObservation(
-            echoed_message=message,
-            message_length=length,
-            done=False,
-            reward=reward,
-            metadata={"original_message": message, "step": self._state.step_count},
+        post_obs = GateObservation(
+            utterance=scenario["utterance"],
+            context_history=list(scenario.get("context_history", [])),
+            user_profile=profile,
+            available_tools=list(TOOL_PALETTE),
+            done=True,
+            reward=None,
+            scenario_id=scenario["id"],
+            ground_truth=gt,
         )
+
+        assert self.rubric is not None  # set in __init__
+        reward = float(self.rubric(action, post_obs))
+        post_obs.reward = reward
+        post_obs.component_scores = {
+            name: child.last_score for name, child in self.rubric.named_children()
+        }
+
+        return post_obs
 
     @property
     def state(self) -> State:
-        """
-        Get the current environment state.
-
-        Returns:
-            Current State with episode_id and step_count
-        """
         return self._state

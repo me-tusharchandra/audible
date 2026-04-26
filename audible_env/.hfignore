@@ -1,0 +1,24 @@
+# Exclude heavy / non-runtime files from the Hugging Face Space upload.
+# The serving env only needs models.py, client.py, server/*, and the
+# yaml/pyproject manifests — raw datasets and tests stay in the GitHub repo.
+
+# Datasets baked at build time (the env doesn't read from disk at runtime)
+data/external/
+data/synthetic/
+data/labeled.parquet
+data/combined.parquet
+data/curriculum/
+
+# Local-only test scripts
+smoke_test.py
+ws_smoke_test.py
+
+# Python build / cache artifacts
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Editor / OS junk
+.DS_Store
+.idea/
+.vscode/

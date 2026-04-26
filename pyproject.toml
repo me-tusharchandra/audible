@@ -6,6 +6,7 @@ dependencies = [
     "accelerate>=1.13.0",
     "datasets>=4.8.4",
     "matplotlib>=3.10.9",
+    "nbformat>=5.10.4",
     "openenv-core",
     "python-dotenv>=1.2.2",
     "scikit-learn>=1.7.2",

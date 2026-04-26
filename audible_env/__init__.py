@@ -4,13 +4,22 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-"""Audible Env Environment."""
+"""Audible — ambient-listening gating environment."""
 
 from .client import AudibleEnv
-from .models import AudibleAction, AudibleObservation
+from .models import (
+    PROFILE_DESCRIPTIONS,
+    PROFILE_NAMES,
+    TOOL_PALETTE,
+    GateAction,
+    GateObservation,
+)
 
 __all__ = [
-    "AudibleAction",
-    "AudibleObservation",
     "AudibleEnv",
+    "GateAction",
+    "GateObservation",
+    "TOOL_PALETTE",
+    "PROFILE_NAMES",
+    "PROFILE_DESCRIPTIONS",
 ]

@@ -1,98 +1,55 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-# All rights reserved.
-#
-# This source code is licensed under the BSD-style license found in the
-# LICENSE file in the root directory of this source tree.
+"""Audible environment client — typed wrapper over the OpenEnv HTTP/WS server."""
 
-"""Audible Env Environment Client."""
-
-from typing import Dict
+from typing import Any, Dict
 
 from openenv.core import EnvClient
 from openenv.core.client_types import StepResult
 from openenv.core.env_server.types import State
 
-from .models import AudibleAction, AudibleObservation
+from .models import GateAction, GateObservation
 
 
-class AudibleEnv(
-    EnvClient[AudibleAction, AudibleObservation, State]
-):
+class AudibleEnv(EnvClient[GateAction, GateObservation, State]):
     """
-    Client for the Audible Env Environment.
-
-    This client maintains a persistent WebSocket connection to the environment server,
-    enabling efficient multi-step interactions with lower latency.
-    Each client instance has its own dedicated environment session on the server.
+    Client for the Audible ambient-listening gating environment.
 
     Example:
-        >>> # Connect to a running server
         >>> with AudibleEnv(base_url="http://localhost:8000") as client:
         ...     result = client.reset()
-        ...     print(result.observation.echoed_message)
+        ...     obs = result.observation
+        ...     print(obs.utterance, obs.user_profile)
         ...
-        ...     result = client.step(AudibleAction(message="Hello!"))
-        ...     print(result.observation.echoed_message)
-
-    Example with Docker:
-        >>> # Automatically start container and connect
-        >>> client = AudibleEnv.from_docker_image("audible_env-env:latest")
-        >>> try:
-        ...     result = client.reset()
-        ...     result = client.step(AudibleAction(message="Test"))
-        ... finally:
-        ...     client.close()
+        ...     action = GateAction(decision="ACT", tool="set_timer")
+        ...     result = client.step(action)
+        ...     print(result.reward, result.observation.metadata["ground_truth"])
     """
 
-    def _step_payload(self, action: AudibleAction) -> Dict:
-        """
-        Convert AudibleAction to JSON payload for step message.
-
-        Args:
-            action: AudibleAction instance
-
-        Returns:
-            Dictionary representation suitable for JSON encoding
-        """
+    def _step_payload(self, action: GateAction) -> Dict[str, Any]:
         return {
-            "message": action.message,
+            "decision": action.decision,
+            "tool": action.tool,
         }
 
-    def _parse_result(self, payload: Dict) -> StepResult[AudibleObservation]:
-        """
-        Parse server response into StepResult[AudibleObservation].
-
-        Args:
-            payload: JSON response data from server
-
-        Returns:
-            StepResult with AudibleObservation
-        """
+    def _parse_result(self, payload: Dict[str, Any]) -> StepResult[GateObservation]:
         obs_data = payload.get("observation", {})
-        observation = AudibleObservation(
-            echoed_message=obs_data.get("echoed_message", ""),
-            message_length=obs_data.get("message_length", 0),
+        observation = GateObservation(
+            utterance=obs_data.get("utterance", ""),
+            context_history=list(obs_data.get("context_history", [])),
+            user_profile=obs_data.get("user_profile", "minimalist"),
+            available_tools=list(obs_data.get("available_tools", [])),
             done=payload.get("done", False),
             reward=payload.get("reward"),
-            metadata=obs_data.get("metadata", {}),
+            scenario_id=obs_data.get("scenario_id"),
+            ground_truth=obs_data.get("ground_truth"),
+            component_scores=obs_data.get("component_scores"),
         )
-
         return StepResult(
             observation=observation,
             reward=payload.get("reward"),
             done=payload.get("done", False),
         )
 
-    def _parse_state(self, payload: Dict) -> State:
-        """
-        Parse server response into State object.
-
-        Args:
-            payload: JSON response from state request
-
-        Returns:
-            State object with episode_id and step_count
-        """
+    def _parse_state(self, payload: Dict[str, Any]) -> State:
         return State(
             episode_id=payload.get("episode_id"),
             step_count=payload.get("step_count", 0),
